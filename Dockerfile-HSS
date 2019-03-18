@@ -1,0 +1,56 @@
+FROM ubuntu:16.04
+MAINTAINER Woojoong Kim <woojoong.m.kim@gmail.com or woojoong@opennetworking.org>
+
+RUN apt-get update && apt-get install -y software-properties-common curl
+RUN echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections 
+RUN add-apt-repository ppa:webupd8team/java && apt-get update && apt-get install -y oracle-java8-installer
+RUN apt-get install -y zip python git build-essential net-tools iputils-ping tcpdump vim-tiny
+
+RUN git clone https://github.com/omec-project/c3po.git /opt/c3po
+
+# Install cmake
+RUN apt-get purge cmake cmake-curses-gui && apt-get install g++ make autotools-dev m4 libncurses-dev wget -y
+RUN rm -rf /opt/c3po/modules/cmake-3.5.1; rm -rf /opt/c3po/modules/cmake-3.5.1.tar.gz
+RUN cd /opt/c3po/modules && wget https://cmake.org/files/v3.5/cmake-3.5.1.tar.gz && tar -xvf cmake-3.5.1.tar.gz
+RUN cd /opt/c3po/modules/cmake-3.5.1 && bash ./bootstrap && make -j4 && make install
+
+# Install libtool
+RUN rm -rf opt/c3po/modules/libtool-2.4.6; rm -rf /opt/c3po/modules/libtool-2.4.6.tar.gz
+RUN cd /opt/c3po/modules && wget http://ftp.gnu.org/gnu/libtool/libtool-2.4.6.tar.gz && tar -xvf libtool-2.4.6.tar.gz
+RUN cd /opt/c3po/modules/libtool-2.4.6 && bash ./configure && make && make install
+
+# Install other libs
+RUN apt-get install g++ make cmake libuv-dev libssl-dev autotools-dev libtool-bin m4 automake libmemcached-dev memcached cmake-curses-gui gcc bison flex libsctp-dev libgnutls-dev libgcrypt-dev libidn11-dev nettle-dev gawk -y
+
+# Download submodule
+RUN cd /opt/c3po && git submodule init && git submodule update
+
+# build freeDiameter
+RUN cd /opt/c3po/modules/freeDiameter && rm -rf build && mkdir -p build
+RUN cd /opt/c3po/modules/freeDiameter/build && cmake .. && awk '{if (/^DISABLE_SCTP/) gsub(/OFF/, "ON"); print}' CMakeCache.txt > tmp && mv tmp CMakeCache.txt && make && make install
+
+# build c_ares
+RUN cd /opt/c3po/modules/c-ares && ./buildconf && ./configure && make && make install
+
+# build cpp_driver
+RUN cd /opt/c3po/modules/cpp-driver && rm -rf build && mkdir -p build
+RUN cd /opt/c3po/modules/cpp-driver/build && cmake .. && make && make install
+
+# build pistache
+RUN cd /opt/c3po/modules/pistache && rm -rf build && mkdir -p build
+RUN cd /opt/c3po/modules/pistache/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release .. && make && make install
+
+RUN cd /opt/c3po && ldconfig
+
+# build c3po
+RUN cd /opt/c3po && make clean && make
+
+# Make freeDiamaeter key
+RUN cd /opt/c3po/hss/conf && bash ../bin/make_certs.sh hss test3gpp.net
+
+WORKDIR /opt
+
+EXPOSE 22 3868 5868 9080 9081 9082
+
+RUN ["/bin/bash"]
+

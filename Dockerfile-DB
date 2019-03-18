@@ -1,0 +1,18 @@
+FROM ubuntu:16.04
+MAINTAINER Woojoong Kim <woojoong.m.kim@gmail.com or woojoong@opennetworking.org>
+
+RUN apt-get update && apt-get install -y software-properties-common curl
+RUN echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections 
+RUN add-apt-repository ppa:webupd8team/java && apt-get update && apt-get install -y oracle-java8-installer
+RUN echo "deb http://www.apache.org/dist/cassandra/debian 21x main" | tee -a /etc/apt/sources.list.d/cassandra.sources.list && curl https://www.apache.org/dist/cassandra/KEYS | apt-key add -
+RUN apt-get update && apt-get install -y cassandra
+RUN apt-get install -y zip python git build-essential net-tools iputils-ping tcpdump vim-tiny
+
+RUN git clone https://github.com/omec-project/c3po.git /opt/c3po
+
+WORKDIR /opt
+
+EXPOSE 22 7000 7001 7199 9042 9160 9142
+
+RUN ["/bin/bash"]
+

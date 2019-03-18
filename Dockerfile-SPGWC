@@ -1,0 +1,48 @@
+FROM ubuntu:16.04
+MAINTAINER Woojoong Kim <woojoong.m.kim@gmail.com or woojoong@opennetworking.org>
+
+RUN apt-get update && apt-get install curl build-essential git unzip libpcap0.8-dev gcc libjson0-dev make libc6 libc6-dev g++-multilib libzmq3-dev libcurl4-openssl-dev libssl-dev python python-pip linux-headers-generic -y
+
+RUN cd /lib/modules && mv $(ls) $(uname -r)
+
+RUN apt-get install net-tools iputils-ping tcpdump vim-tiny gdb curl wget gawk -y
+
+RUN pip install zmq
+
+RUN git clone https://github.com/omec-project/ngic-rtc.git /opt/ngic
+
+RUN cd /opt/ngic && wget --no-check-certificate https://fast.dpdk.org/rel/dpdk-18.02.tar.gz && tar -zxvf dpdk-18.02.tar.gz && rm -f dpdk-18.02.tar.gz
+RUN mv /opt/ngic/dpdk-*/ /opt/ngic/dpdk/
+RUN cd /opt/ngic && patch ./dpdk/drivers/net/i40e/i40e_rxtx.c ./patches/avx_not_suported.patch
+
+# Install DPDK
+RUN cd /opt/ngic && cp -f dpdk-18.02_common_linuxapp dpdk/config/common_linuxapp
+RUN cd /opt/ngic/dpdk && sed -ri 's,(IGB_UIO=).*,\1n,' config/common_linuxapp && sed -ri 's,(KNI_KMOD=).*,\1n,' config/common_linuxapp
+RUN cd /opt/ngic/dpdk && make -j 20 install T=x86_64-native-linuxapp-gcc
+#RUN cd /opt/ngic/dpdk && /sbin/insmod ./x86_64-native-linuxapp-gcc/kmod/rte_kni.ko
+#RUN cd /opt/ngic/dpdk && modinfo igb_uio
+#RUN cd /opt/ngic/dpdk && /sbin/modprobe -v uio && /sbin/insmod x86_64-native-linuxapp-gcc/kmod/igb_uio.ko && cp -f x86_64-native-linuxapp-gcc/kmod/igb_uio.ko /lib/modules/"$(uname -r)" && echo "uio" | tee -a /etc/modules && echo "igb_uio" | tee -a /etc/modules && depmod
+
+# Install Hyperscan
+RUN apt-get install libboost-all-dev cmake ragel -y
+RUN cd /opt/ngic && wget https://github.com/01org/hyperscan/archive/v4.1.0.tar.gz && tar -xvf v4.1.0.tar.gz
+RUN cd /opt/ngic/hyperscan-4.1.0 && mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=c++ .. && cmake --build .
+
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/ngic/hyperscan-4.1.0/build/lib
+ENV HYPERSCANDIR /opt/ngic/hyperscan-4.1.0
+RUN cd /opt/ngic && echo "export HYPERSCANDIR=/opt/ngic/hyperscan-4.1.0" >> setenv.sh
+
+# Download linux sgx
+RUN cd /opt/ngic/ && git clone --branch sgx_1.9 https://github.com/intel/linux-sgx.git
+
+# Build NGIC DP
+ENV RTE_SDK /opt/ngic/dpdk
+#RUN cd /opt/ngic && bash setenv.sh && make clean && make -j4 build-lib && make -j4 build-dp EXTRA_CFLAGS="-DSTATS -DOSTATS"
+RUN cd /opt/ngic && . ./setenv.sh && cd libgtpv2c && make clean && make && cd /opt/ngic && make clean-cp && make build-cp
+
+WORKDIR /opt
+
+EXPOSE 22 2123
+
+RUN ["/bin/bash"]
+
