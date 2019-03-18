@@ -1,9 +1,7 @@
 FROM ubuntu:16.04
 MAINTAINER Woojoong Kim <woojoong.m.kim@gmail.com or woojoong@opennetworking.org>
 
-RUN apt-get update && apt-get install curl build-essential git unzip libpcap0.8-dev gcc libjson0-dev make libc6 libc6-dev g++-multilib libzmq3-dev libcurl4-openssl-dev libssl-dev python python-pip linux-headers-generic -y
-
-RUN cd /lib/modules && mv $(ls) $(uname -r)
+RUN apt-get update && apt-get install curl build-essential git unzip libpcap0.8-dev gcc libjson0-dev make libc6 libc6-dev g++-multilib libzmq3-dev libcurl4-openssl-dev libssl-dev python python-pip linux-headers-$(uname -r) kmod -y
 
 RUN apt-get install net-tools iputils-ping tcpdump vim-tiny gdb curl wget gawk -y
 
@@ -42,7 +40,7 @@ RUN cd /opt/ngic && . ./setenv.sh && cd libgtpv2c && make clean && make && cd /o
 
 WORKDIR /opt
 
-EXPOSE 22 2123
+EXPOSE 22 21
 
 RUN ["/bin/bash"]
 
