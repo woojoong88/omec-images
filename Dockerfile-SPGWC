@@ -40,7 +40,7 @@ RUN cd /opt/ngic && . ./setenv.sh && cd libgtpv2c && make clean && make && cd /o
 
 WORKDIR /opt
 
-EXPOSE 22 21
+EXPOSE 22 21 2123
 
 RUN ["/bin/bash"]
 
